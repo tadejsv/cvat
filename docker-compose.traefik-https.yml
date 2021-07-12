@@ -38,7 +38,7 @@ services:
       - traefik.enable=true
       - traefik.http.routers.cvat.rule=Host(`www.example.com`) &&
           PathPrefix(`/api/`, `/git/`, `/opencv/`, `/analytics/`, `/static/`, `/admin`, `/documentation/`, `/django-rq`)
-      - traefik.http.routers.cvat.entrypoints=websecyre
+      - traefik.http.routers.cvat.entrypoints=websecure
       - traefik.http.routers.cvat.tls.certresolver=lets-encrypt
     volumes:
       - cvat_data:/home/django/data
