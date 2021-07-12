@@ -1,0 +1,96 @@
+version: '3.3'
+
+services:
+  cvat_db:
+    container_name: cvat_db
+    image: postgres:10-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_DB: cvat
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - cvat_db:/var/lib/postgresql/data
+    networks:
+      - cvat
+
+  cvat_redis:
+    container_name: cvat_redis
+    image: redis:4.0-alpine
+    restart: always
+    networks:
+      - cvat
+
+  cvat:
+    container_name: cvat
+    image: openvino/cvat_server
+    restart: always
+    depends_on:
+      - cvat_redis
+      - cvat_db
+    environment:
+      DJANGO_MODWSGI_EXTRA_ARGS: ''
+      ALLOWED_HOSTS: '*'
+      CVAT_REDIS_HOST: 'cvat_redis'
+      CVAT_POSTGRES_HOST: 'cvat_db'
+      ADAPTIVE_AUTO_ANNOTATION: 'false'
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.cvat.rule=Host(`www.example.com`) &&
+          PathPrefix(`/api/`, `/git/`, `/opencv/`, `/analytics/`, `/static/`, `/admin`, `/documentation/`, `/django-rq`)
+      - traefik.http.routers.cvat.entrypoints=websecyre
+      - traefik.http.routers.cvat.tls.certresolver=lets-encrypt
+    volumes:
+      - cvat_data:/home/django/data
+      - cvat_keys:/home/django/keys
+      - cvat_logs:/home/django/logs
+    networks:
+      - cvat
+
+  cvat_ui:
+    container_name: cvat_ui
+    image: openvino/cvat_ui
+    restart: always
+    depends_on:
+      - cvat
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.cvat-ui.rule=Host(`www.example.com`)
+      - traefik.http.routers.cvat-ui.entrypoints=websecure
+      - traefik.http.routers.cvat-ui.tls.certresolver=lets-encrypt
+    networks:
+      - cvat
+
+  traefik:
+    image: traefik:v2.4
+    container_name: traefik
+    command:
+      - "--providers.docker.exposedByDefault=false"
+      - "--entryPoints.web.address=:80"
+      - "--entryPoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entryPoints.web.http.redirections.entryPoint.scheme=https"
+      - "--entryPoints.websecure.address=:443"
+      - "--certificatesResolvers.lets-encrypt.acme.email=admin@example.com"
+      - "--certificatesResolvers.lets-encrypt.acme.tlsChallenge=true"
+      # Uncomment to get Traefik dashboard
+      # - "--api.insecure=true"
+    ports:
+      - 80:80
+      # Uncomment to get Traefik dashboard
+      # - 8080:8080
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - cvat
+      - cvat_ui
+    networks:
+      - cvat
+
+volumes:
+  cvat_db:
+  cvat_data:
+  cvat_keys:
+  cvat_logs:
+
+networks:
+  cvat:
