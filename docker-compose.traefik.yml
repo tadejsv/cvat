@@ -69,6 +69,7 @@ services:
       # - "--api.insecure=true"
     ports:
       - 80:80
+      - 443:443
       # Uncomment to get Traefik dashboard
       # - 8080:8080
     volumes:
